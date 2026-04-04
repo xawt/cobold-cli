@@ -11,8 +11,9 @@ $(OUT): $(SRCS)
 	mkdir -p dist
 	$(COBC) $(COBFLAGS) -o $(OUT) $(SRCS)
 
-dist/.env: .env
-	cp .env dist/.env
+dist/.env: $(wildcard .env) .env.example
+	mkdir -p dist
+	cp $(if $(wildcard .env),.env,.env.example) dist/.env
 
 clean:
 	rm -rf dist
