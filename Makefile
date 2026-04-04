@@ -1,15 +1,18 @@
-COBC    = cobc
+COBC     = cobc
 COBFLAGS = -x
-SRC     = src/main.cob
-OUT     = dist/cobold
+SRCS     = src/main.cob src/env-reader.cob
+OUT      = dist/cobold
 
 .PHONY: all clean
 
-all: $(OUT)
+all: $(OUT) dist/.env
 
-$(OUT): $(SRC)
+$(OUT): $(SRCS)
 	mkdir -p dist
-	$(COBC) $(COBFLAGS) -o $(OUT) $(SRC)
+	$(COBC) $(COBFLAGS) -o $(OUT) $(SRCS)
+
+dist/.env: .env
+	cp .env dist/.env
 
 clean:
 	rm -rf dist
