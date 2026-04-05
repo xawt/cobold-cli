@@ -6,6 +6,13 @@
        01  WS-API-KEY          PIC X(300).
        01  WS-MODEL            PIC X(100).
        01  WS-USER-INPUT       PIC X(1000).
+       01  WS-RUNNING          PIC X VALUE 'Y'.
+
+      * Conversation context (passed to CONTEXT-MGR each turn)
+       01  WS-MESSAGES-JSON    PIC X(8000) VALUE '[]'.
+       01  WS-MSG-COUNT        PIC 99      VALUE 0.
+       01  WS-MSG-ROLE         PIC X(20).
+       01  WS-MSG-CONTENT      PIC X(2000).
 
       * ANSI escape sequences (ESC [ ... m)
        01  CLR                 PIC X(4) VALUE X"1B5B306D".
@@ -23,11 +30,29 @@
            DISPLAY BOLD "   cobold-cli  --  AI agent in COBOL    " CLR
            DISPLAY BOLD "=========================================" CLR
            DISPLAY DIM "Model: " FUNCTION TRIM(WS-MODEL) CLR
+           DISPLAY DIM "Type /q to quit" CLR
            DISPLAY " "
-           DISPLAY BLUE "you @> " CLR WITH NO ADVANCING
-           ACCEPT WS-USER-INPUT
 
-           DISPLAY " "
-           DISPLAY GREEN "ai: " CLR FUNCTION TRIM(WS-USER-INPUT)
+           PERFORM UNTIL WS-RUNNING = 'N'
+               DISPLAY BLUE "you @> " CLR WITH NO ADVANCING
+               ACCEPT WS-USER-INPUT
+
+               IF FUNCTION TRIM(WS-USER-INPUT) = '/q'
+                   MOVE 'N' TO WS-RUNNING
+               ELSE
+                   MOVE 'user'        TO WS-MSG-ROLE
+                   MOVE WS-USER-INPUT TO WS-MSG-CONTENT
+                   CALL "CONTEXT-MGR" USING
+                       WS-MSG-ROLE
+                       WS-MSG-CONTENT
+                       WS-MESSAGES-JSON
+                       WS-MSG-COUNT
+
+                   DISPLAY " "
+                   DISPLAY GREEN "ai: " CLR
+                       FUNCTION TRIM(WS-MESSAGES-JSON)
+                   DISPLAY " "
+               END-IF
+           END-PERFORM
 
            STOP RUN.
