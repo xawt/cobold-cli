@@ -9,6 +9,10 @@
        01  WS-RUNNING          PIC X VALUE 'Y'.
        01  WS-AI-RESPONSE      PIC X(2000).
 
+      * System prompt
+       01  WS-PROMPT-CONTENT   PIC X(2000).
+       01  WS-PROMPT-STATUS    PIC X.
+
       * Conversation context
        01  WS-MESSAGES-JSON    PIC X(16000) VALUE '[]'.
        01  WS-MSG-COUNT        PIC 99      VALUE 0.
@@ -26,6 +30,18 @@
 
        MAIN-PARA.
            CALL "ENV-READER" USING WS-API-KEY, WS-MODEL
+
+           CALL "PROMPT-LOADER" USING WS-PROMPT-CONTENT
+               WS-PROMPT-STATUS
+           IF WS-PROMPT-STATUS = 'Y'
+               MOVE 'system'          TO WS-MSG-ROLE
+               MOVE WS-PROMPT-CONTENT TO WS-MSG-CONTENT
+               CALL "CONTEXT-MGR" USING
+                   WS-MSG-ROLE
+                   WS-MSG-CONTENT
+                   WS-MESSAGES-JSON
+                   WS-MSG-COUNT
+           END-IF
 
            DISPLAY BOLD "=========================================" CLR
            DISPLAY BOLD "   cobold-cli  --  AI agent in COBOL    " CLR
