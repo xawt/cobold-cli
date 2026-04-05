@@ -7,8 +7,9 @@
        01  WS-MODEL            PIC X(100).
        01  WS-USER-INPUT       PIC X(1000).
        01  WS-RUNNING          PIC X VALUE 'Y'.
+       01  WS-AI-RESPONSE      PIC X(2000).
 
-      * Conversation context (passed to CONTEXT-MGR each turn)
+      * Conversation context
        01  WS-MESSAGES-JSON    PIC X(8000) VALUE '[]'.
        01  WS-MSG-COUNT        PIC 99      VALUE 0.
        01  WS-MSG-ROLE         PIC X(20).
@@ -48,9 +49,16 @@
                        WS-MESSAGES-JSON
                        WS-MSG-COUNT
 
+                   CALL "AI-CALLER" USING
+                       WS-API-KEY
+                       WS-MODEL
+                       WS-MESSAGES-JSON
+                       WS-MSG-COUNT
+                       WS-AI-RESPONSE
+
                    DISPLAY " "
-                   DISPLAY GREEN "ai: " CLR
-                       FUNCTION TRIM(WS-MESSAGES-JSON)
+                   DISPLAY GREEN "ai @> " CLR
+                       FUNCTION TRIM(WS-AI-RESPONSE)
                    DISPLAY " "
                END-IF
            END-PERFORM
