@@ -55,6 +55,14 @@
                        MOVE '\' TO WS-ESCAPED(WS-DST-IDX:1)
                        ADD 1 TO WS-DST-IDX
                        MOVE 'n' TO WS-ESCAPED(WS-DST-IDX:1)
+                   WHEN X"0D"
+                       MOVE '\' TO WS-ESCAPED(WS-DST-IDX:1)
+                       ADD 1 TO WS-DST-IDX
+                       MOVE 'r' TO WS-ESCAPED(WS-DST-IDX:1)
+                   WHEN X"09"
+                       MOVE '\' TO WS-ESCAPED(WS-DST-IDX:1)
+                       ADD 1 TO WS-DST-IDX
+                       MOVE 't' TO WS-ESCAPED(WS-DST-IDX:1)
                    WHEN OTHER
                        MOVE WS-CHAR TO WS-ESCAPED(WS-DST-IDX:1)
                END-EVALUATE

@@ -6,7 +6,7 @@ OUT      = dist/cobold
 
 .PHONY: all clean
 
-all: $(OUT) dist/.env
+all: $(OUT) dist/.env dist/prompts/system-prompt.txt
 
 $(OUT): $(SRCS)
 	mkdir -p dist
@@ -15,6 +15,10 @@ $(OUT): $(SRCS)
 dist/.env: $(wildcard .env) .env.example
 	mkdir -p dist
 	cp $(if $(wildcard .env),.env,.env.example) dist/.env
+
+dist/prompts/system-prompt.txt: prompts/system-prompt.txt
+	mkdir -p dist/prompts
+	cp prompts/system-prompt.txt dist/prompts/system-prompt.txt
 
 clean:
 	rm -rf dist
