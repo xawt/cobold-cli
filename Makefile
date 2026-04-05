@@ -1,6 +1,7 @@
 COBC     = cobc
 COBFLAGS = -x
-SRCS     = src/main.cob src/env-reader.cob src/context-mgr.cob src/ai-caller.cob
+SRCS     = src/main.cob src/env-reader.cob src/context-mgr.cob \
+           src/ai-caller.cob src/prompt-loader.cob
 OUT      = dist/cobold
 
 .PHONY: all clean

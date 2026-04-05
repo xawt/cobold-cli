@@ -33,7 +33,7 @@
            EXIT PROGRAM.
 
       *> Escape CM-CONTENT for embedding in a JSON string value.
-      *> Handles: \ -> \\  " -> \"  (newline/tab left as-is; rare in input)
+      *> Handles: \ -> \\   " -> \"   newline -> \n
        ESCAPE-PARA.
            MOVE SPACES TO WS-ESCAPED
            MOVE 1 TO WS-DST-IDX
@@ -51,6 +51,10 @@
                        MOVE '\' TO WS-ESCAPED(WS-DST-IDX:1)
                        ADD 1 TO WS-DST-IDX
                        MOVE '"' TO WS-ESCAPED(WS-DST-IDX:1)
+                   WHEN X"0A"
+                       MOVE '\' TO WS-ESCAPED(WS-DST-IDX:1)
+                       ADD 1 TO WS-DST-IDX
+                       MOVE 'n' TO WS-ESCAPED(WS-DST-IDX:1)
                    WHEN OTHER
                        MOVE WS-CHAR TO WS-ESCAPED(WS-DST-IDX:1)
                END-EVALUATE
