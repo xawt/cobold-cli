@@ -10,7 +10,7 @@
        01  WS-AI-RESPONSE      PIC X(2000).
 
       * Conversation context
-       01  WS-MESSAGES-JSON    PIC X(8000) VALUE '[]'.
+       01  WS-MESSAGES-JSON    PIC X(16000) VALUE '[]'.
        01  WS-MSG-COUNT        PIC 99      VALUE 0.
        01  WS-MSG-ROLE         PIC X(20).
        01  WS-MSG-CONTENT      PIC X(2000).

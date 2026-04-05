@@ -6,7 +6,7 @@
       *>
       *> CM-ROLE    PIC X(20)   -- "user", "assistant", "system", "tool"
       *> CM-CONTENT PIC X(2000) -- plain text (may contain quotes)
-      *> CM-JSON    PIC X(8000) -- grows with every turn, init to '[]'
+      *> CM-JSON    PIC X(16000) -- grows with every turn, init to '[]'
       *> CM-COUNT   PIC 99      -- turns appended so far, init to 0
 
        DATA DIVISION.
@@ -22,7 +22,7 @@
        LINKAGE SECTION.
        01  CM-ROLE             PIC X(20).
        01  CM-CONTENT          PIC X(2000).
-       01  CM-JSON             PIC X(8000).
+       01  CM-JSON             PIC X(16000).
        01  CM-COUNT            PIC 99.
 
        PROCEDURE DIVISION USING CM-ROLE CM-CONTENT CM-JSON CM-COUNT.
@@ -32,7 +32,8 @@
            PERFORM APPEND-PARA
            EXIT PROGRAM.
 
-      *> Replace every " with \" in CM-CONTENT (in-place via buffer)
+      *> Escape CM-CONTENT for embedding in a JSON string value.
+      *> Handles: \ -> \\  " -> \"  (newline/tab left as-is; rare in input)
        ESCAPE-PARA.
            MOVE SPACES TO WS-ESCAPED
            MOVE 1 TO WS-DST-IDX
@@ -41,11 +42,18 @@
            PERFORM VARYING WS-SRC-IDX FROM 1 BY 1
                    UNTIL WS-SRC-IDX > WS-SRC-LEN
                MOVE CM-CONTENT(WS-SRC-IDX:1) TO WS-CHAR
-               IF WS-CHAR = '"'
-                   MOVE '\' TO WS-ESCAPED(WS-DST-IDX:1)
-                   ADD 1 TO WS-DST-IDX
-               END-IF
-               MOVE WS-CHAR TO WS-ESCAPED(WS-DST-IDX:1)
+               EVALUATE WS-CHAR
+                   WHEN '\'
+                       MOVE '\' TO WS-ESCAPED(WS-DST-IDX:1)
+                       ADD 1 TO WS-DST-IDX
+                       MOVE '\' TO WS-ESCAPED(WS-DST-IDX:1)
+                   WHEN '"'
+                       MOVE '\' TO WS-ESCAPED(WS-DST-IDX:1)
+                       ADD 1 TO WS-DST-IDX
+                       MOVE '"' TO WS-ESCAPED(WS-DST-IDX:1)
+                   WHEN OTHER
+                       MOVE WS-CHAR TO WS-ESCAPED(WS-DST-IDX:1)
+               END-EVALUATE
                ADD 1 TO WS-DST-IDX
            END-PERFORM
            MOVE WS-ESCAPED TO CM-CONTENT.
