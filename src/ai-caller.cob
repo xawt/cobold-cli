@@ -459,12 +459,20 @@
                ADD 1 TO WS-UNE-SRC-IDX
            END-PERFORM.
 
-      *> Invoke the weather tool with the extracted location
+      *> Invoke the requested tool only if the extracted name is supported
        EXECUTE-TOOL.
            MOVE SPACES TO WS-TOOL-RESULT
-           CALL "WEATHER-TOOL" USING
-               WS-TOOL-LOCATION
-               WS-TOOL-RESULT.
+           IF FUNCTION TRIM(WS-TOOL-NAME) = "get_weather"
+               CALL "WEATHER-TOOL" USING
+                   WS-TOOL-LOCATION
+                   WS-TOOL-RESULT
+           ELSE
+               MOVE 'Y' TO WS-ERROR-FLAG
+               STRING "Unsupported tool: "
+                   FUNCTION TRIM(WS-TOOL-NAME)
+                   DELIMITED SIZE
+                   INTO WS-TOOL-RESULT
+           END-IF.
 
       *> Extract the tool_call id field for context messages
        EXTRACT-TOOL-ID.
