@@ -77,6 +77,10 @@
        01  WS-JSON-LEN2        PIC 9(5).
        01  WS-JSON-PTR         PIC 9(5).
 
+      *> ANSI escape codes (local to this module)
+       01  GRAY                PIC X(5) VALUE X"1B5B39306D".
+       01  CLR-LOCAL           PIC X(4) VALUE X"1B5B306D".
+
       *> Tool definition fragments for the API payload
        01  WS-TOOLS-PART1      PIC X(42) VALUE
                ',"tools":[{"type":"function","function":{' .
@@ -492,16 +496,11 @@
                ADD 1 TO WS-SCAN-IDX
            END-PERFORM.
 
-      *> Display tool call details (debug prints kept)
+      *> Print a single gray info line about the tool being invoked
        LOG-TOOL-CALL.
-           DISPLAY " "
-           DISPLAY "[tool call]   "
+           DISPLAY GRAY "[tool] calling "
                FUNCTION TRIM(WS-TOOL-NAME)
-           DISPLAY "[tool args]   "
-               FUNCTION TRIM(WS-TOOL-ARGS-RAW)
-           DISPLAY "[tool result] "
-               FUNCTION TRIM(WS-TOOL-RESULT)
-           DISPLAY " ".
+               "(" FUNCTION TRIM(WS-TOOL-LOCATION) ")" CLR-LOCAL.
 
       *> Escape WS-TOOL-RESULT for embedding in a JSON string value
        ESCAPE-TOOL-RESULT.
