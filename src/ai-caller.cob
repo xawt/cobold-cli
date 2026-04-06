@@ -60,6 +60,34 @@
        01  WS-ROLE-BUF         PIC X(20).
        01  WS-CONTENT-BUF      PIC X(2000).
 
+      *> Tool call detection
+       01  WS-TOOL-CALL-FLAG   PIC X VALUE 'N'.
+       01  WS-TOOL-NAME        PIC X(100).
+       01  WS-TOOL-ARGS-RAW    PIC X(500).
+       01  WS-TOOL-LOCATION    PIC X(100).
+       01  WS-TOOL-RESULT      PIC X(500).
+       01  WS-TC-SEARCH        PIC X(12) VALUE '"tool_calls"'.
+       01  WS-TC-POS           PIC 9(4).
+       01  WS-NAME-SEARCH      PIC X(8)  VALUE '"name":"'.
+       01  WS-ARGS-SEARCH      PIC X(13) VALUE '"arguments":"'.
+       01  WS-LOC-SEARCH       PIC X(15) VALUE '\"location\":\"'.
+
+      *> Tool definition fragments for the API payload
+       01  WS-TOOLS-PART1      PIC X(42) VALUE
+               ',"tools":[{"type":"function","function":{' .
+       01  WS-TOOLS-PART2      PIC X(35) VALUE
+               '"name":"get_weather","description":' .
+       01  WS-TOOLS-PART3      PIC X(40) VALUE
+               '"Get the current weather for a location"' .
+       01  WS-TOOLS-PART4      PIC X(32) VALUE
+               ',"parameters":{"type":"object",' .
+       01  WS-TOOLS-PART5      PIC X(42) VALUE
+               '"properties":{"location":{"type":"string",' .
+       01  WS-TOOLS-PART6      PIC X(43) VALUE
+               '"description":"City or location to look up"' .
+       01  WS-TOOLS-PART7      PIC X(31) VALUE
+               '}},"required":["location"]}}}]}' .
+
        LINKAGE SECTION.
        01  LK-API-KEY          PIC X(300).
        01  LK-MODEL            PIC X(100).
@@ -73,6 +101,7 @@
 
        MAIN-PARA.
            MOVE 'N' TO WS-ERROR-FLAG
+           MOVE 'N' TO WS-TOOL-CALL-FLAG
            PERFORM BUILD-PAYLOAD
            PERFORM WRITE-PAYLOAD
            IF WS-ERROR-FLAG = 'Y'
@@ -87,21 +116,43 @@
            IF WS-ERROR-FLAG = 'Y'
                EXIT PROGRAM
            END-IF
+           PERFORM DETECT-TOOL-CALL
+           IF WS-TOOL-CALL-FLAG = 'Y'
+               PERFORM EXTRACT-TOOL-NAME
+               PERFORM EXTRACT-TOOL-ARGS
+               PERFORM EXTRACT-LOCATION
+               PERFORM EXECUTE-TOOL
+               PERFORM LOG-AND-EXIT
+           END-IF
            PERFORM EXTRACT-CONTENT
            PERFORM UNESCAPE-CONTENT
            PERFORM APPEND-ASSISTANT
            MOVE WS-UNESCAPED TO LK-RESPONSE
            EXIT PROGRAM.
 
-      *> Build: {"model":"<model>","messages":<json>}
+      *> Build: {"model":"<model>","messages":<json>,"tools":[...]}
        BUILD-PAYLOAD.
            MOVE SPACES TO WS-PAYLOAD
            STRING
                "{""model"":"""                  DELIMITED SIZE
                FUNCTION TRIM(LK-MODEL)          DELIMITED SIZE
                """,""messages"":"               DELIMITED SIZE
-               FUNCTION TRIM(LK-MESSAGES-JSON)  DELIMITED SIZE
-               "}"                              DELIMITED SIZE
+               FUNCTION TRIM(LK-MESSAGES-JSON)
+                   DELIMITED SIZE
+               FUNCTION TRIM(WS-TOOLS-PART1)
+                   DELIMITED SIZE
+               FUNCTION TRIM(WS-TOOLS-PART2)
+                   DELIMITED SIZE
+               FUNCTION TRIM(WS-TOOLS-PART3)
+                   DELIMITED SIZE
+               FUNCTION TRIM(WS-TOOLS-PART4)
+                   DELIMITED SIZE
+               FUNCTION TRIM(WS-TOOLS-PART5)
+                   DELIMITED SIZE
+               FUNCTION TRIM(WS-TOOLS-PART6)
+                   DELIMITED SIZE
+               FUNCTION TRIM(WS-TOOLS-PART7)
+                   DELIMITED SIZE
                INTO WS-PAYLOAD.
 
       *> Write payload to temp file -- avoids all shell quoting issues
@@ -256,3 +307,153 @@
                WS-CONTENT-BUF
                LK-MESSAGES-JSON
                LK-MSG-COUNT.
+
+      *> Detect a tool_calls block in the raw response
+       DETECT-TOOL-CALL.
+           MOVE FUNCTION LENGTH(FUNCTION TRIM(WS-RESPONSE))
+               TO WS-RESP-LEN
+           MOVE 0 TO WS-TC-POS
+           IF WS-RESP-LEN < 12
+               EXIT PARAGRAPH
+           END-IF
+           PERFORM VARYING WS-SCAN-IDX FROM 1 BY 1
+                   UNTIL WS-SCAN-IDX > WS-RESP-LEN - 11
+                      OR WS-TC-POS > 0
+               IF WS-RESPONSE(WS-SCAN-IDX:12) = WS-TC-SEARCH
+                   MOVE WS-SCAN-IDX TO WS-TC-POS
+               END-IF
+           END-PERFORM
+           IF WS-TC-POS > 0
+               MOVE 'Y' TO WS-TOOL-CALL-FLAG
+           END-IF.
+
+      *> Extract function name from the tool_calls block
+       EXTRACT-TOOL-NAME.
+           MOVE SPACES TO WS-TOOL-NAME
+           MOVE 0 TO WS-FOUND-POS
+           PERFORM VARYING WS-SCAN-IDX FROM WS-TC-POS BY 1
+                   UNTIL WS-SCAN-IDX > WS-RESP-LEN - 7
+                      OR WS-FOUND-POS > 0
+               IF WS-RESPONSE(WS-SCAN-IDX:8) = WS-NAME-SEARCH
+                   MOVE WS-SCAN-IDX TO WS-FOUND-POS
+               END-IF
+           END-PERFORM
+           IF WS-FOUND-POS = 0
+               EXIT PARAGRAPH
+           END-IF
+           ADD 8 TO WS-FOUND-POS GIVING WS-SCAN-IDX
+           MOVE 1 TO WS-CONTENT-IDX
+           MOVE 'N' TO WS-DONE
+           PERFORM UNTIL WS-SCAN-IDX > WS-RESP-LEN
+                      OR WS-DONE = 'Y'
+               MOVE WS-RESPONSE(WS-SCAN-IDX:1) TO WS-CHAR
+               IF WS-CHAR = '"'
+                   MOVE 'Y' TO WS-DONE
+               ELSE
+                   MOVE WS-CHAR TO
+                       WS-TOOL-NAME(WS-CONTENT-IDX:1)
+                   ADD 1 TO WS-CONTENT-IDX
+               END-IF
+               ADD 1 TO WS-SCAN-IDX
+           END-PERFORM.
+
+      *> Extract raw (still JSON-escaped) arguments string
+       EXTRACT-TOOL-ARGS.
+           MOVE SPACES TO WS-TOOL-ARGS-RAW
+           MOVE 0 TO WS-FOUND-POS
+           PERFORM VARYING WS-SCAN-IDX FROM WS-TC-POS BY 1
+                   UNTIL WS-SCAN-IDX > WS-RESP-LEN - 12
+                      OR WS-FOUND-POS > 0
+               IF WS-RESPONSE(WS-SCAN-IDX:13) = WS-ARGS-SEARCH
+                   MOVE WS-SCAN-IDX TO WS-FOUND-POS
+               END-IF
+           END-PERFORM
+           IF WS-FOUND-POS = 0
+               EXIT PARAGRAPH
+           END-IF
+           ADD 13 TO WS-FOUND-POS GIVING WS-SCAN-IDX
+           MOVE 1 TO WS-CONTENT-IDX
+           MOVE 0 TO WS-BS-COUNT
+           MOVE 'N' TO WS-DONE
+           PERFORM UNTIL WS-SCAN-IDX > WS-RESP-LEN
+                      OR WS-DONE = 'Y'
+               MOVE WS-RESPONSE(WS-SCAN-IDX:1) TO WS-CHAR
+               IF WS-CHAR = '"'
+                  AND FUNCTION MOD(WS-BS-COUNT, 2) = 0
+                   MOVE 'Y' TO WS-DONE
+               ELSE
+                   MOVE WS-CHAR TO
+                       WS-TOOL-ARGS-RAW(WS-CONTENT-IDX:1)
+                   ADD 1 TO WS-CONTENT-IDX
+                   IF WS-CHAR = '\'
+                       ADD 1 TO WS-BS-COUNT
+                   ELSE
+                       MOVE 0 TO WS-BS-COUNT
+                   END-IF
+               END-IF
+               ADD 1 TO WS-SCAN-IDX
+           END-PERFORM.
+
+      *> Pull location value out of the raw args: {\"location\":\"...\"}
+       EXTRACT-LOCATION.
+           MOVE SPACES TO WS-TOOL-LOCATION
+           MOVE FUNCTION LENGTH(FUNCTION TRIM(WS-TOOL-ARGS-RAW))
+               TO WS-UNE-LEN
+           IF WS-UNE-LEN < 15
+               EXIT PARAGRAPH
+           END-IF
+           MOVE 0 TO WS-FOUND-POS
+           PERFORM VARYING WS-UNE-SRC-IDX FROM 1 BY 1
+                   UNTIL WS-UNE-SRC-IDX > WS-UNE-LEN - 14
+                      OR WS-FOUND-POS > 0
+               IF WS-TOOL-ARGS-RAW(WS-UNE-SRC-IDX:15)
+                       = WS-LOC-SEARCH
+                   MOVE WS-UNE-SRC-IDX TO WS-FOUND-POS
+               END-IF
+           END-PERFORM
+           IF WS-FOUND-POS = 0
+               EXIT PARAGRAPH
+           END-IF
+           ADD 15 TO WS-FOUND-POS GIVING WS-UNE-SRC-IDX
+           MOVE 1 TO WS-UNE-DST-IDX
+           MOVE 'N' TO WS-DONE
+           PERFORM UNTIL WS-UNE-SRC-IDX > WS-UNE-LEN
+                      OR WS-DONE = 'Y'
+               MOVE WS-TOOL-ARGS-RAW(WS-UNE-SRC-IDX:1) TO WS-CHAR
+               IF WS-CHAR = '\'
+                   ADD 1 TO WS-UNE-SRC-IDX
+                   MOVE WS-TOOL-ARGS-RAW(WS-UNE-SRC-IDX:1)
+                       TO WS-CHAR
+                   IF WS-CHAR = '"'
+                       MOVE 'Y' TO WS-DONE
+                   ELSE
+                       MOVE WS-CHAR TO
+                           WS-TOOL-LOCATION(WS-UNE-DST-IDX:1)
+                       ADD 1 TO WS-UNE-DST-IDX
+                   END-IF
+               ELSE
+                   MOVE WS-CHAR TO
+                       WS-TOOL-LOCATION(WS-UNE-DST-IDX:1)
+                   ADD 1 TO WS-UNE-DST-IDX
+               END-IF
+               ADD 1 TO WS-UNE-SRC-IDX
+           END-PERFORM.
+
+      *> Invoke the weather tool with the extracted location
+       EXECUTE-TOOL.
+           MOVE SPACES TO WS-TOOL-RESULT
+           CALL "WEATHER-TOOL" USING
+               WS-TOOL-LOCATION
+               WS-TOOL-RESULT.
+
+      *> Display tool call details and exit the application
+       LOG-AND-EXIT.
+           DISPLAY " "
+           DISPLAY "[tool call]   "
+               FUNCTION TRIM(WS-TOOL-NAME)
+           DISPLAY "[tool args]   "
+               FUNCTION TRIM(WS-TOOL-ARGS-RAW)
+           DISPLAY "[tool result] "
+               FUNCTION TRIM(WS-TOOL-RESULT)
+           DISPLAY " "
+           STOP RUN.
