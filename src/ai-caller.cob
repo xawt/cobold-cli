@@ -71,6 +71,11 @@
        01  WS-NAME-SEARCH      PIC X(8)  VALUE '"name":"'.
        01  WS-ARGS-SEARCH      PIC X(13) VALUE '"arguments":"'.
        01  WS-LOC-SEARCH       PIC X(15) VALUE '\"location\":\"'.
+       01  WS-TOOL-CALL-ID     PIC X(100).
+       01  WS-ID-SEARCH        PIC X(6)  VALUE '"id":"'.
+       01  WS-RESULT-ESCAPED   PIC X(1000).
+       01  WS-JSON-LEN2        PIC 9(5).
+       01  WS-JSON-PTR         PIC 9(5).
 
       *> Tool definition fragments for the API payload
        01  WS-TOOLS-PART1      PIC X(42) VALUE
@@ -101,34 +106,45 @@
 
        MAIN-PARA.
            MOVE 'N' TO WS-ERROR-FLAG
-           MOVE 'N' TO WS-TOOL-CALL-FLAG
+           PERFORM BUILD-CALL-PARA
+           PERFORM UNTIL WS-TOOL-CALL-FLAG = 'N'
+                      OR WS-ERROR-FLAG = 'Y'
+               PERFORM EXTRACT-TOOL-NAME
+               PERFORM EXTRACT-TOOL-ARGS
+               PERFORM EXTRACT-LOCATION
+               PERFORM EXTRACT-TOOL-ID
+               PERFORM EXECUTE-TOOL
+               PERFORM LOG-TOOL-CALL
+               PERFORM APPEND-ASST-TOOLCALL
+               PERFORM APPEND-TOOL-RESULT
+               PERFORM BUILD-CALL-PARA
+           END-PERFORM
+           IF WS-ERROR-FLAG = 'N'
+               PERFORM EXTRACT-CONTENT
+               PERFORM UNESCAPE-CONTENT
+               PERFORM APPEND-ASSISTANT
+               MOVE WS-UNESCAPED TO LK-RESPONSE
+           END-IF
+           EXIT PROGRAM.
+
+      *> One round-trip: build payload, call API, read + detect tool
+       BUILD-CALL-PARA.
            PERFORM BUILD-PAYLOAD
            PERFORM WRITE-PAYLOAD
            IF WS-ERROR-FLAG = 'Y'
-               EXIT PROGRAM
+               EXIT PARAGRAPH
            END-IF
            PERFORM BUILD-CURL-CMD
            PERFORM RUN-CURL
            IF WS-ERROR-FLAG = 'Y'
-               EXIT PROGRAM
+               EXIT PARAGRAPH
            END-IF
            PERFORM READ-RESPONSE
            IF WS-ERROR-FLAG = 'Y'
-               EXIT PROGRAM
+               EXIT PARAGRAPH
            END-IF
-           PERFORM DETECT-TOOL-CALL
-           IF WS-TOOL-CALL-FLAG = 'Y'
-               PERFORM EXTRACT-TOOL-NAME
-               PERFORM EXTRACT-TOOL-ARGS
-               PERFORM EXTRACT-LOCATION
-               PERFORM EXECUTE-TOOL
-               PERFORM LOG-AND-EXIT
-           END-IF
-           PERFORM EXTRACT-CONTENT
-           PERFORM UNESCAPE-CONTENT
-           PERFORM APPEND-ASSISTANT
-           MOVE WS-UNESCAPED TO LK-RESPONSE
-           EXIT PROGRAM.
+           MOVE 'N' TO WS-TOOL-CALL-FLAG
+           PERFORM DETECT-TOOL-CALL.
 
       *> Build: {"model":"<model>","messages":<json>,"tools":[...]}
        BUILD-PAYLOAD.
@@ -446,8 +462,38 @@
                WS-TOOL-LOCATION
                WS-TOOL-RESULT.
 
-      *> Display tool call details and exit the application
-       LOG-AND-EXIT.
+      *> Extract the tool_call id field for context messages
+       EXTRACT-TOOL-ID.
+           MOVE SPACES TO WS-TOOL-CALL-ID
+           MOVE 0 TO WS-FOUND-POS
+           PERFORM VARYING WS-SCAN-IDX FROM WS-TC-POS BY 1
+                   UNTIL WS-SCAN-IDX > WS-RESP-LEN - 5
+                      OR WS-FOUND-POS > 0
+               IF WS-RESPONSE(WS-SCAN-IDX:6) = WS-ID-SEARCH
+                   MOVE WS-SCAN-IDX TO WS-FOUND-POS
+               END-IF
+           END-PERFORM
+           IF WS-FOUND-POS = 0
+               EXIT PARAGRAPH
+           END-IF
+           ADD 6 TO WS-FOUND-POS GIVING WS-SCAN-IDX
+           MOVE 1 TO WS-CONTENT-IDX
+           MOVE 'N' TO WS-DONE
+           PERFORM UNTIL WS-SCAN-IDX > WS-RESP-LEN
+                      OR WS-DONE = 'Y'
+               MOVE WS-RESPONSE(WS-SCAN-IDX:1) TO WS-CHAR
+               IF WS-CHAR = '"'
+                   MOVE 'Y' TO WS-DONE
+               ELSE
+                   MOVE WS-CHAR TO
+                       WS-TOOL-CALL-ID(WS-CONTENT-IDX:1)
+                   ADD 1 TO WS-CONTENT-IDX
+               END-IF
+               ADD 1 TO WS-SCAN-IDX
+           END-PERFORM.
+
+      *> Display tool call details (debug prints kept)
+       LOG-TOOL-CALL.
            DISPLAY " "
            DISPLAY "[tool call]   "
                FUNCTION TRIM(WS-TOOL-NAME)
@@ -455,5 +501,76 @@
                FUNCTION TRIM(WS-TOOL-ARGS-RAW)
            DISPLAY "[tool result] "
                FUNCTION TRIM(WS-TOOL-RESULT)
-           DISPLAY " "
-           STOP RUN.
+           DISPLAY " ".
+
+      *> Escape WS-TOOL-RESULT for embedding in a JSON string value
+       ESCAPE-TOOL-RESULT.
+           MOVE SPACES TO WS-RESULT-ESCAPED
+           MOVE FUNCTION LENGTH(FUNCTION TRIM(WS-TOOL-RESULT))
+               TO WS-UNE-LEN
+           MOVE 1 TO WS-UNE-DST-IDX
+           PERFORM VARYING WS-UNE-SRC-IDX FROM 1 BY 1
+                   UNTIL WS-UNE-SRC-IDX > WS-UNE-LEN
+               MOVE WS-TOOL-RESULT(WS-UNE-SRC-IDX:1) TO WS-CHAR
+               EVALUATE WS-CHAR
+                   WHEN '\'
+                       MOVE '\' TO
+                           WS-RESULT-ESCAPED(WS-UNE-DST-IDX:1)
+                       ADD 1 TO WS-UNE-DST-IDX
+                       MOVE '\' TO
+                           WS-RESULT-ESCAPED(WS-UNE-DST-IDX:1)
+                   WHEN '"'
+                       MOVE '\' TO
+                           WS-RESULT-ESCAPED(WS-UNE-DST-IDX:1)
+                       ADD 1 TO WS-UNE-DST-IDX
+                       MOVE '"' TO
+                           WS-RESULT-ESCAPED(WS-UNE-DST-IDX:1)
+                   WHEN X"0A"
+                       MOVE '\' TO
+                           WS-RESULT-ESCAPED(WS-UNE-DST-IDX:1)
+                       ADD 1 TO WS-UNE-DST-IDX
+                       MOVE 'n' TO
+                           WS-RESULT-ESCAPED(WS-UNE-DST-IDX:1)
+                   WHEN OTHER
+                       MOVE WS-CHAR TO
+                           WS-RESULT-ESCAPED(WS-UNE-DST-IDX:1)
+               END-EVALUATE
+               ADD 1 TO WS-UNE-DST-IDX
+           END-PERFORM.
+
+      *> Append assistant tool_calls message to context (raw JSON)
+       APPEND-ASST-TOOLCALL.
+           MOVE FUNCTION LENGTH(FUNCTION TRIM(LK-MESSAGES-JSON))
+               TO WS-JSON-LEN2
+           MOVE WS-JSON-LEN2 TO WS-JSON-PTR
+           STRING
+               ','                               DELIMITED SIZE
+               '{"role":"assistant"'             DELIMITED SIZE
+               ',"content":null'                 DELIMITED SIZE
+               ',"tool_calls":[{"id":"'          DELIMITED SIZE
+               FUNCTION TRIM(WS-TOOL-CALL-ID)   DELIMITED SIZE
+               '","type":"function"'             DELIMITED SIZE
+               ',"function":{"name":"'           DELIMITED SIZE
+               FUNCTION TRIM(WS-TOOL-NAME)       DELIMITED SIZE
+               '","arguments":"'                 DELIMITED SIZE
+               FUNCTION TRIM(WS-TOOL-ARGS-RAW)  DELIMITED SIZE
+               '"}}]}]'                          DELIMITED SIZE
+               INTO LK-MESSAGES-JSON WITH POINTER WS-JSON-PTR
+           ADD 1 TO LK-MSG-COUNT.
+
+      *> Append tool result message to context
+       APPEND-TOOL-RESULT.
+           PERFORM ESCAPE-TOOL-RESULT
+           MOVE FUNCTION LENGTH(FUNCTION TRIM(LK-MESSAGES-JSON))
+               TO WS-JSON-LEN2
+           MOVE WS-JSON-LEN2 TO WS-JSON-PTR
+           STRING
+               ','                               DELIMITED SIZE
+               '{"role":"tool"'                  DELIMITED SIZE
+               ',"tool_call_id":"'               DELIMITED SIZE
+               FUNCTION TRIM(WS-TOOL-CALL-ID)   DELIMITED SIZE
+               '","content":"'                   DELIMITED SIZE
+               FUNCTION TRIM(WS-RESULT-ESCAPED)  DELIMITED SIZE
+               '"}]'                             DELIMITED SIZE
+               INTO LK-MESSAGES-JSON WITH POINTER WS-JSON-PTR
+           ADD 1 TO LK-MSG-COUNT.
