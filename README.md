@@ -175,6 +175,10 @@ That's literally the byte length of the in-memory JSON buffer. When it fills up,
 
 <div align="center">
 
+☕ **My wife** — for feeding and caffeinating me through the three days it took to write and test this thing. None of the COBOL would have compiled without her.
+
+🍷 **The Italians** — for the wine I drank to release the frustration of parsing JSON by hand. (Sorry France, the local shop didn't stock any Grand Vin de Bordeaux.)
+
 🎨 Logo based on artwork by **Christopher Burdett** for **Wizards of the Coast**
 [christopherburdett.com](http://christopherburdett.com)
 
