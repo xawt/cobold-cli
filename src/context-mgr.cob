@@ -6,7 +6,7 @@
       *>
       *> CM-ROLE    PIC X(20)   -- "user", "assistant", "system", "tool"
       *> CM-CONTENT PIC X(2000) -- plain text (may contain quotes)
-            *> CM-JSON    PIC X(60000)
+      *> CM-JSON    PIC X(60000) -- grows each turn, init to '[]'
       *> CM-COUNT   PIC 99      -- turns appended so far, init to 0
 
        DATA DIVISION.
