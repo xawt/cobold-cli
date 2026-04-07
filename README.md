@@ -14,6 +14,8 @@
 
 *A terminal chatbot that speaks to modern LLMs — written in a language older than the moon landing.*
 
+> 🤓 **Be a nerd — get to the [bottom](#-credits) of it first.** :P
+
 </div>
 
 ---
@@ -33,6 +35,22 @@ No JSON library. No HTTP library. No dependencies beyond `curl` and a COBOL comp
 <div align="center">
 
 ![cobold-cli asking for the weather in Funchal, Madeira](assets/sample.png)
+
+*A simple weather query, end-to-end — tool call and all.*
+
+</div>
+
+---
+
+## 🎓 Going further: the ai_devs4 agent
+
+The base `cobold-cli` is the minimal viable agent. The real fun begins in the extended build, where more tools, tighter context management, and richer reasoning logic are wired in to actually **solve tasks from the [ai_devs4](https://aidevs.pl) course** — the one run by **[Mateusz Chrobok](https://www.youtube.com/@MateuszChrobok)** on YouTube (Polish, sorry international friends 🇵🇱).
+
+<div align="center">
+
+![cobold-cli solving an ai_devs4 task with a multi-tool agent loop](assets/agent_system.png)
+
+*Multi-tool agent loop in action — COBOL, but make it agentic.*
 
 </div>
 
@@ -179,7 +197,7 @@ That's literally the byte length of the in-memory JSON buffer. When it fills up,
 
 🍷 **The Italians** — for the wine I drank to release the frustration of parsing JSON by hand. (Sorry France, the local shop didn't stock any Grand Vin de Bordeaux.)
 
-🤘 **[Bartosz](https://github.com/carinaesoft)** — for believing I was the only sick bastard who would actually attempt this. YOLO! 😈
+🤘 **[Bartosz](https://github.com/carinaesoft)** — for believing I was the only sick bastard who could actually pull this off. YOLO! 😈
 
 ⚓ **Grace Hopper** — for laying the foundations of COBOL, the Python of the 70's. o7
 
