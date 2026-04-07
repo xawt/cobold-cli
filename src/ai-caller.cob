@@ -4,7 +4,7 @@
       *> CALL "AI-CALLER" USING
       *>   LK-API-KEY       PIC X(300)   -- OpenRouter API key
       *>   LK-MODEL         PIC X(100)   -- model identifier
-      *>   LK-MESSAGES-JSON PIC X(16000) -- context array (updated)
+        *>   LK-MESSAGES-JSON PIC X(60000)
       *>   LK-MSG-COUNT     PIC 99       -- turn count (updated)
       *>   LK-RESPONSE      PIC X(2000)  -- extracted assistant text
 
@@ -23,16 +23,16 @@
        DATA DIVISION.
        FILE SECTION.
        FD  PAYLOAD-FILE.
-       01  PAYLOAD-RECORD      PIC X(16500).
+         01  PAYLOAD-RECORD      PIC X(64000).
        FD  RESP-FILE.
-       01  RESP-RECORD         PIC X(4000).
+         01  RESP-RECORD         PIC X(8000).
 
        WORKING-STORAGE SECTION.
-       01  WS-PAYLOAD          PIC X(16500).
+         01  WS-PAYLOAD          PIC X(64000).
        01  WS-CURL-CMD         PIC X(500).
 
-       01  WS-RESPONSE         PIC X(16000).
-       01  WS-RESP-PTR         PIC 9(4).
+         01  WS-RESPONSE         PIC X(64000).
+         01  WS-RESP-PTR         PIC 9(5).
        01  WS-FILE-STATUS      PIC XX.
        01  WS-PAY-STATUS       PIC XX.
        01  WS-EOF              PIC X.
@@ -41,18 +41,18 @@
        01  WS-SEARCH           PIC X(11) VALUE '"content":"'.
        01  WS-CONTENT          PIC X(2000).
        01  WS-UNESCAPED        PIC X(2000).
-       01  WS-RESP-LEN         PIC 9(4).
-       01  WS-SCAN-IDX         PIC 9(4).
-       01  WS-FOUND-POS        PIC 9(4).
-       01  WS-CONTENT-IDX      PIC 9(4).
-       01  WS-UNE-SRC-IDX      PIC 9(4).
-       01  WS-UNE-DST-IDX      PIC 9(4).
-       01  WS-UNE-LEN          PIC 9(4).
+         01  WS-RESP-LEN         PIC 9(5).
+         01  WS-SCAN-IDX         PIC 9(5).
+         01  WS-FOUND-POS        PIC 9(5).
+         01  WS-CONTENT-IDX      PIC 9(5).
+         01  WS-UNE-SRC-IDX      PIC 9(5).
+         01  WS-UNE-DST-IDX      PIC 9(5).
+         01  WS-UNE-LEN          PIC 9(5).
        01  WS-CHAR             PIC X.
        01  WS-NEXT-CHAR        PIC X.
        01  WS-PREV-CHAR        PIC X.
        01  WS-DONE             PIC X.
-       01  WS-BS-COUNT         PIC 9(4).
+         01  WS-BS-COUNT         PIC 9(5).
        01  WS-CURL-RC          PIC S9(9) BINARY.
        01  WS-ERROR-FLAG       PIC X VALUE 'N'.
 
@@ -100,7 +100,7 @@
        LINKAGE SECTION.
        01  LK-API-KEY          PIC X(300).
        01  LK-MODEL            PIC X(100).
-       01  LK-MESSAGES-JSON    PIC X(16000).
+         01  LK-MESSAGES-JSON    PIC X(60000).
        01  LK-MSG-COUNT        PIC 99.
        01  LK-RESPONSE         PIC X(2000).
 

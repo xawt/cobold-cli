@@ -14,10 +14,11 @@
        01  WS-PROMPT-STATUS    PIC X.
 
       * Conversation context
-       01  WS-MESSAGES-JSON    PIC X(16000) VALUE '[]'.
+        01  WS-MESSAGES-JSON    PIC X(60000) VALUE '[]'.
        01  WS-MSG-COUNT        PIC 99      VALUE 0.
        01  WS-MSG-ROLE         PIC X(20).
        01  WS-MSG-CONTENT      PIC X(2000).
+        01  WS-CONTEXT-SIZE     PIC 9(5).
 
       * ANSI escape sequences (ESC [ ... m)
        01  CLR                 PIC X(4) VALUE X"1B5B306D".
@@ -72,9 +73,16 @@
                        WS-MSG-COUNT
                        WS-AI-RESPONSE
 
+                   MOVE FUNCTION LENGTH(
+                       FUNCTION TRIM(WS-MESSAGES-JSON))
+                       TO WS-CONTEXT-SIZE
+
                    DISPLAY " "
                    DISPLAY GREEN "ai @> " CLR
                        FUNCTION TRIM(WS-AI-RESPONSE)
+                   DISPLAY DIM "context @> "
+                       FUNCTION TRIM(WS-CONTEXT-SIZE)
+                       "/60000 chars used" CLR
                    DISPLAY " "
                END-IF
            END-PERFORM

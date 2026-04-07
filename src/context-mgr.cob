@@ -6,7 +6,7 @@
       *>
       *> CM-ROLE    PIC X(20)   -- "user", "assistant", "system", "tool"
       *> CM-CONTENT PIC X(2000) -- plain text (may contain quotes)
-      *> CM-JSON    PIC X(16000) -- grows with every turn, init to '[]'
+            *> CM-JSON    PIC X(60000)
       *> CM-COUNT   PIC 99      -- turns appended so far, init to 0
 
        DATA DIVISION.
@@ -16,13 +16,13 @@
        01  WS-DST-IDX          PIC 9(4).
        01  WS-SRC-LEN          PIC 9(4).
        01  WS-CHAR             PIC X.
-       01  WS-JSON-LEN         PIC 9(4).
-       01  WS-PTR              PIC 9(4).
+         01  WS-JSON-LEN         PIC 9(5).
+         01  WS-PTR              PIC 9(5).
 
        LINKAGE SECTION.
        01  CM-ROLE             PIC X(20).
        01  CM-CONTENT          PIC X(2000).
-       01  CM-JSON             PIC X(16000).
+         01  CM-JSON             PIC X(60000).
        01  CM-COUNT            PIC 99.
 
        PROCEDURE DIVISION USING CM-ROLE CM-CONTENT CM-JSON CM-COUNT.
