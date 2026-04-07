@@ -179,6 +179,10 @@ That's literally the byte length of the in-memory JSON buffer. When it fills up,
 
 🍷 **The Italians** — for the wine I drank to release the frustration of parsing JSON by hand. (Sorry France, the local shop didn't stock any Grand Vin de Bordeaux.)
 
+🤘 **[Bartosz](https://github.com/carinaesoft)** — for believing I was the only sick bastard who would actually attempt this. YOLO! 😈
+
+⚓ **Grace Hopper** — for laying the foundations of COBOL, the Python of the 70's. o7
+
 🎨 Logo based on artwork by **Christopher Burdett** for **Wizards of the Coast**
 [christopherburdett.com](http://christopherburdett.com)
 
